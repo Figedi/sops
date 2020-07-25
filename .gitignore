@@ -1,0 +1,11 @@
+# IDEs
+/.vscode
+/.idea
+
+# Dependencies
+/node_modules
+
+# Build
+/dist
+
+.eslintcache

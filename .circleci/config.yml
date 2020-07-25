@@ -1,0 +1,539 @@
+version: 2.1
+orbs:
+  ci:
+    executors:
+      node-executor:
+        working_directory: ~/code
+        docker:
+          - image: circleci/node:10
+      node-gcloud-executor:
+        working_directory: ~/code
+        docker:
+          - image: figedi/circleci-node-gcloud
+
+    commands:
+      attach_to_code_workspace:
+        description: "[ci] Attaches to ~/code"
+        steps:
+          - attach_workspace:
+              at: ~/code
+
+      setup_npm_access:
+        description: "[npm] Command for setting up npm Access"
+        parameters:
+          npm_registry:
+            type: string
+            default: registry.npmjs.org
+          npm_registry_token:
+            type: string
+            default: ${NPM_REGISTRY_TOKEN}
+        steps:
+          - run:
+              name: "[npm] Authenticate npm"
+              command: |
+                npm set registry https://<< parameters.npm_registry >>
+                echo "//<< parameters.npm_registry >>/:_authToken=<< parameters.npm_registry_token >>" > ~/.npmrc
+
+      persist_state_for_next_job:
+        parameters: 
+          persist_full_state:
+            type: boolean 
+            default: false
+        description: "[ci] Persist job-state for next job"
+        steps:
+          - when:
+              condition: << parameters.persist_full_state >>
+              steps:
+                - persist_to_workspace:
+                    root: ~/code
+                    paths:
+                      # should include everything
+                      - "."
+          - unless:
+              condition: << parameters.persist_full_state >>
+              steps:
+                - persist_to_workspace:
+                    root: ~/code
+                    paths:
+                      # Contains unpushed "bump" commit
+                      - ".git"
+                      # Contains image/version/name-data
+                      - ".contextrc"
+                      # Contains built image
+                      - "docker-cache"
+                      # Necessary to determine subservice name and version
+                      - "package.json"
+          
+      download_ci_toolkit:
+        description: "[ci|cd] Download ci-toolkit"
+        parameters:
+          ci_toolkit_url:
+            type: string
+        steps:
+          - run:
+              name: "[ci|cd] Download ci-toolkit"
+              command: |
+                mkdir -p ~/helpers
+                if [ -f "~/helpers/ci-toolkit" ];
+                  then
+                    echo "CI-toolkit already exists, will skip downloading it"
+                  else 
+                    curl -o ~/helpers/ci-toolkit << parameters.ci_toolkit_url >>
+                    chmod u+rwx ~/helpers/ci-toolkit
+                  fi
+
+      setup_github_access:
+        description: "[git] Command for setting up Github Access"
+        parameters:
+          email:
+            type: string
+            default: "kaminski.felix@gmail.com"
+          user_name:
+            type: string
+            default: "Kaminskobot"
+        steps:
+          - run:
+              name: "[git] Add Github to known hosts"
+              command: |
+                mkdir -p ~/.ssh
+                touch ~/.ssh/known_hosts
+                ssh-keygen -F github.com || ssh-keyscan github.com >> ~/.ssh/known_hosts
+          - run:
+              name: "[git] Configure Github User"
+              # Email and UserName of this command specify
+              # how commits are displayed in the GH repo
+              command: |
+                git config --global user.email "<< parameters.email >>"
+                git config --global user.name "<< parameters.user_name >>"
+
+      run_tests_w_docker:
+        description: "[app] Run << parameters.command >> tests w/ docker/docker-compose"
+        parameters:
+          command:
+            type: string
+            default: "npm run specs"
+          check_for_npm_script:
+            type: string 
+            default: specs
+          working_directory:
+            type: string
+            default: "."
+        steps:
+          - run:
+              name: "[app] Run << parameters.command >> tests w/ docker/docker-compose"
+              # circleci has no support for conditional skipping (just failing. thus the pre-check of npm-commands is inlined and duplicated)
+              command: |
+                cd << parameters.working_directory >>
+                HAS_NPM_COMMAND=$(cat package.json | grep "\"<< parameters.check_for_npm_script >>\":") || true
+                if [ -z "${HAS_NPM_COMMAND}" ];
+                  then
+                    echo "Skipping docker-compose tests for command << parameters.command >>. Reason: Cannot be found in package.json";
+                  else 
+                    if [ -f "docker-compose.ci.yml" ];
+                      then
+                        EXIT_CODE=0 && docker-compose -f docker-compose.ci.yml run -e CI="${CI}" --entrypoint 'sh -c "<< parameters.command >>"' app || EXIT_CODE=$?
+                        exit $EXIT_CODE
+                      else 
+                        env | sed -n '/^GITHUB_PRIVATE_KEY/,/^-----END RSA PRIVATE KEY-----/!p' >> .docker.env
+                        docker run --entrypoint="" --env-file=.docker.env ${IMAGE_NAME}:${CIRCLE_SHA1} /bin/sh -c "<< parameters.command >>";
+                        rm .docker.env
+                      fi
+                  fi
+
+      run_command_in_docker_container:
+        description: "[app] Run command '<< parameters.command >>' in docker-container"
+        parameters:
+          command:
+            type: string
+            default: "npm run specs"
+          check_for_npm_script:
+            type: string 
+            default: specs
+          working_directory:
+            type: string
+            default: "."
+        steps:
+          - run:
+              name: "[app] Run command '<< parameters.command >>' in docker-container"
+              # circleci has no support for conditional skipping (just failing. thus the pre-check of npm-commands is inlined and duplicated)
+              command: |
+                cd << parameters.working_directory >>
+                HAS_NPM_COMMAND=$(cat package.json | grep "\"<< parameters.check_for_npm_script >>\":") || true
+                if [ -z "${HAS_NPM_COMMAND}" ];
+                  then
+                    echo "Skipping command << parameters.command >> in docker-container. Reason: Cannot be found in package.json";
+                  else 
+                    docker run --entrypoint="" ${IMAGE_NAME}:${CIRCLE_SHA1} /bin/sh -c "<< parameters.command >>";
+                  fi
+
+      build_docker_container:
+        description: "[docker] Build application"
+        parameters:
+          working_directory:
+            type: string
+            default: "."
+          npm_registry:
+            type: string
+            default: registry.npmjs.org
+          npm_registry_token:
+            type: string
+            default: ${NPM_REGISTRY_TOKEN}
+        steps:
+          - run:
+              name: "[docker] Build application"
+              command: |
+                cd << parameters.working_directory >>
+                docker build --build-arg NPM_REGISTRY_TOKEN=<< parameters.npm_registry_token >> --build-arg CI=$CI --build-arg NPM_REGISTRY=<< parameters.npm_registry >> .
+                BUILDER_ID=$(docker images --filter label=build=builder -q)
+                RELEASE_ID=$(docker images --filter label=build=release -q)
+                # image for ci
+                if [ -z "$BUILDER_ID" ]; then
+                  echo "Missing builder image exiting...."; exit 1;
+                fi
+                docker image tag "${BUILDER_ID}" "${IMAGE_NAME}:${CIRCLE_SHA1}-builder"
+                # image for prod
+                if [ -z "$RELEASE_ID" ]; then 
+                  echo "Missing release image skipping tagging.."; 
+                else
+                  docker image tag "${RELEASE_ID}" "${IMAGE_NAME}:${CIRCLE_SHA1}-release"
+                fi
+                
+      persist_docker_image_locally:
+        description: "[ci] Save docker image locally"
+        steps:
+          - run:
+              name: "[ci] Save docker image locally"
+              command: |
+                mkdir -p docker-cache
+                RELEASE_ID=$(docker images --filter label=build=release -q)
+                docker save "${IMAGE_NAME}:${CIRCLE_SHA1}-builder" | gzip -c > docker-cache/${CIRCLE_PROJECT_REPONAME}-${CIRCLE_SHA1}-builder.tar.gz
+                if [ ! -z "$RELEASE_ID" ]; then
+                  docker save "${IMAGE_NAME}:${CIRCLE_SHA1}-release" | gzip -c > docker-cache/${CIRCLE_PROJECT_REPONAME}-${CIRCLE_SHA1}-release.tar.gz
+                fi
+              
+      persist_bash_env_locally:
+        description: "[ci] Save bash-env to disk"
+        steps:
+        - run:
+            name: "[ci] Save bash-env to disk"
+            command: cat $BASH_ENV >> .contextrc
+
+      restore_docker_image:
+        description: "[ci] Restore docker-image"
+        parameters: 
+          image: 
+            type: string
+            default: "builder"
+        steps:
+        - run:
+            name: "[ci] Restore docker-image"
+            command: |
+              DOCKER_IMAGE_FILENAME=${CIRCLE_PROJECT_REPONAME}-${CIRCLE_SHA1}-<< parameters.image >>.tar.gz
+              if [ ! -f "docker-cache/$DOCKER_IMAGE_FILENAME" ]; then
+                echo "Missing << parameters.image >> image tar file, exiting....."; exit 1;
+              fi
+              docker load --input docker-cache/$DOCKER_IMAGE_FILENAME
+              docker image tag ${IMAGE_NAME}:${CIRCLE_SHA1}-<< parameters.image >> "${IMAGE_NAME}:${CIRCLE_SHA1}"
+              docker image tag ${IMAGE_NAME}:${CIRCLE_SHA1}-<< parameters.image >> "${IMAGE_NAME}:${BUILD_VERSION}"
+              docker image tag ${IMAGE_NAME}:${CIRCLE_SHA1}-<< parameters.image >> "${IMAGE_NAME}:latest"
+              rm -rf docker-cache
+
+      restore_bash_env:
+        description: "[ci] Restore bash-env"
+        steps:
+        - run:
+            name: "[ci] Restore bash-env"
+            command: |
+              cat .contextrc > $BASH_ENV
+              rm .contextrc
+
+      determine_image_name:
+        description: "[ci] Determine image name"
+        parameters: 
+          working_directory:
+            type: string
+            default: "."
+        steps:
+          - run:
+              name: "[ci] Determine image name"
+              command: |
+                cd << parameters.working_directory >>
+                SERVICE_NAME=${CIRCLE_PROJECT_REPONAME}
+                BUILD_VERSION=v$(node -e "console.log(require('./package.json').version)")
+                IMAGE_NAME=figedi/${SERVICE_NAME}
+                echo "export BUILD_VERSION=${BUILD_VERSION}" >> $BASH_ENV
+                echo "export IMAGE_NAME=${IMAGE_NAME}" >> $BASH_ENV
+                echo "Building image ${IMAGE_NAME}:${BUILD_VERSION}"
+      
+      bump_version:
+        parameters:
+          working_directory:
+            type: string
+            default: "."
+          tag_prefix:
+            type: string
+            default: v
+          ticket_pattern:
+            type: string
+            default: FGD
+          extra_commit_message:
+            type: string
+            default: ""
+        description: "[app] Bump version"
+        steps:
+          - run:
+              name: "[app] Download & execute ci-toolkit 'bump'"
+              command: |
+                cd << parameters.working_directory >>
+                ~/helpers/ci-toolkit bump . "<< parameters.tag_prefix >>" "<< parameters.ticket_pattern >>" "<< parameters.extra_commit_message >>"
+
+      extract_app_from_docker_image:
+        parameters:
+          working_directory:
+            type: string
+            default: "."
+        description: "[ci] Extract touched files from docker image to make them pushable"
+        steps:
+        - run:
+            name: "[ci] Extract touched files from docker image to make them pushable"
+            command: |
+              cd << parameters.working_directory >>
+              docker run --name temp-copy-container --entrypoint /bin/true ${IMAGE_NAME}
+              docker cp temp-copy-container:/opt/app ~/tmp_artifacts
+              rsync -r --exclude '.*' --exclude node_modules ~/tmp_artifacts/ .
+              rm -rf node_modules ~/tmp_artifacts
+              docker rm temp-copy-container
+
+      push_repo_changes_to_git:
+        parameters:
+          stash_before_pull:
+            type: boolean
+            default: false
+        description: "[git] Push changes from version bump and CHANGELOG update"
+        steps:
+          - when:
+              condition: << parameters.stash_before_pull >>
+              steps:
+                - run:
+                    # Whenever the working_directory is not restored in full, alot of files are actually removed
+                    # This flag stashes thoses changes, so we can pull
+                    name: "[git] Stash intermediate, uncommitted changes"
+                    command: git stash
+          - run:
+              # Pushes the project to github with a predefined token (see 1password)
+              name: "[git] Push changes from version bump and CHANGELOG update"
+              command: |
+                git pull --rebase origin ${CIRCLE_BRANCH}
+                git push --follow-tags origin ${CIRCLE_BRANCH}
+      
+      push_package_to_npm:
+        parameters:
+          working_directory:
+            type: string
+            default: "."
+          public:
+            type: boolean
+            default: false
+          release_branch_name:
+            type: string
+            default: release
+        description: "[npm] Push package to npm registry"
+        steps:
+          - run:
+              name: "[npm] Push package to npm registry (PUBLIC = << parameters.public >>)"
+              command: |
+                cd << parameters.working_directory >>
+                NPM_IS_PUBLIC=$(<< parameters.public >> && echo "--access public" || echo "")
+                NPM_IS_BETA=$([[ $CIRCLE_BRANCH == << parameters.release_branch_name >>/* ]] && echo "--tag beta" || echo "")
+                echo "Publishing to npm with args $NPM_IS_PUBLIC $NPM_IS_BETA"
+                npm publish $NPM_IS_PUBLIC $NPM_IS_BETA
+
+    jobs:
+      checkout_bump_and_build:
+        parameters:
+          working_directory:
+            type: string 
+            default: "."
+          tag_prefix:
+            type: string 
+            default: "v"
+          persist_full_state: 
+            type: boolean
+            default: false
+          extra_commit_message: 
+            type: string
+            default: ""
+          ticket_pattern: 
+            type: string
+            default: "FGD"
+          ci_toolkit_url: 
+            type: string
+            default: ${CI_TOOLKIT_URL}
+          npm_registry:
+            type: string
+            default: registry.npmjs.org
+          npm_registry_token:
+            type: string
+            default: ${NPM_REGISTRY_TOKEN}
+        executor: node-executor
+        steps:
+          - checkout
+          - setup_remote_docker
+          - setup_github_access
+          - setup_npm_access:
+              npm_registry: << parameters.npm_registry >>
+              npm_registry_token: << parameters.npm_registry_token >>
+          - download_ci_toolkit:
+              ci_toolkit_url: << parameters.ci_toolkit_url >>
+          - bump_version:
+              working_directory: << parameters.working_directory >>
+              tag_prefix: << parameters.tag_prefix >>
+              extra_commit_message: << parameters.extra_commit_message >>
+              ticket_pattern: << parameters.ticket_pattern >>
+          - determine_image_name:
+              working_directory: << parameters.working_directory >>
+          - build_docker_container:
+              working_directory: << parameters.working_directory >>
+              npm_registry: << parameters.npm_registry >>
+              npm_registry_token: << parameters.npm_registry_token >>
+          - persist_docker_image_locally
+          - persist_bash_env_locally
+          - persist_state_for_next_job:
+              persist_full_state: << parameters.persist_full_state >>
+
+      lint:
+        executor: node-executor
+        parameters:
+          working_directory:
+            type: string 
+            default: "."
+        steps:
+          - attach_to_code_workspace
+          - setup_remote_docker
+          - restore_bash_env
+          - restore_docker_image:
+              image: builder
+          - run_command_in_docker_container:
+              working_directory: << parameters.working_directory >>
+              command: "npm run lint"
+              check_for_npm_script: lint
+
+      specs:
+        executor: node-executor
+        parameters:
+          working_directory:
+            type: string 
+            default: "."
+          command:
+            type: string 
+            default: "npm run specs"
+          check_for_npm_script:
+            type: string 
+            default: specs
+        steps:
+          - attach_to_code_workspace
+          - setup_remote_docker
+          - restore_bash_env
+          - restore_docker_image:
+              image: builder
+          - run_tests_w_docker:
+              working_directory: << parameters.working_directory >>
+              command: << parameters.command >>
+              check_for_npm_script: << parameters.check_for_npm_script >>
+
+      push_to_github:
+        executor: node-executor
+        parameters:
+          stash_before_pull:
+            type: boolean 
+            default: false
+        steps:
+          - attach_to_code_workspace
+          - setup_github_access
+          - push_repo_changes_to_git:
+              stash_before_pull: << parameters.stash_before_pull >>
+
+      push_to_npm:
+        executor: node-gcloud-executor
+        parameters:
+          working_directory:
+            type: string 
+            default: "."
+          ci_toolkit_url: 
+            type: string
+            default: ${CI_TOOLKIT_URL}
+          image:
+            type: string
+            default: release
+          npm_registry_token:
+            type: string
+            default: ${NPM_REGISTRY_TOKEN}
+          release_branch_name:
+            type: string
+            default: release
+          public:
+            type: boolean
+            default: false
+        steps:
+          - attach_to_code_workspace
+          - setup_remote_docker
+          - restore_bash_env
+          - restore_docker_image:
+              image: << parameters.image >>
+          - setup_npm_access:
+              npm_registry_token: << parameters.npm_registry_token >>
+          - extract_app_from_docker_image:
+              working_directory: << parameters.working_directory >>
+          - push_package_to_npm:
+              working_directory: << parameters.working_directory >>
+              public: << parameters.public >>
+              release_branch_name: << parameters.release_branch_name >>
+
+workflows:
+  ci:
+    jobs:
+      - ci/checkout_bump_and_build:
+          name: checkout_bump_and_build
+          context: ci-default-v1
+          # do not strip dot-files for now (e.g. keep .npmignore)
+          persist_full_state: true
+
+      - ci/lint:
+          name: lint
+          context: ci-default-v1
+          requires:
+            - checkout_bump_and_build
+
+      - ci/specs:
+          name: specs
+          context: ci-default-v1
+          requires:
+            - checkout_bump_and_build
+
+      - ci/push_to_github:
+          name: push_to_github
+          context: ci-default-v1
+          stash_before_pull: true
+          filters:
+            branches:
+              only:
+                - master
+                - /release\/.*/
+          requires:
+            - specs
+            - lint
+
+      - ci/push_to_npm:
+          name: push_to_npm
+          context: ci-default-v1
+          image: builder
+          public: true
+          filters:
+            branches:
+              only:
+                - master
+                - /release\/.*/
+          requires:
+            - specs
+            - lint
+  

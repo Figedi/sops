@@ -1,0 +1,9 @@
+.circleci
+.vscode
+coverage
+dist
+logs
+node_modules
+*.log
+.phraseapp.yml
+helm
