@@ -1,5 +1,5 @@
 import { encryptJson } from "../sopsUtils";
-import { ISopsEncryptedJSON } from "../../kms";
+import { ISopsEncryptedJSON } from "../../types";
 import baseJson = require("./secrets.json");
 
 export const getUnencryptedSecret = (): Record<string, any> => baseJson;

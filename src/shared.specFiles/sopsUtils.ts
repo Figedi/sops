@@ -1,7 +1,8 @@
 import { v1 } from "@google-cloud/kms";
 import { createHash, createCipheriv, scryptSync } from "crypto";
 import { set } from "lodash";
-import { uncoverPaths, ISopsEncryptedJSON } from "../kms";
+import { uncoverPaths } from "../helpers";
+import { ISopsEncryptedJSON } from "../types";
 
 /**
  * Encrypts a given string-value (e.g. a stringified object) in a sops-like fashion:

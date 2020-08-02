@@ -1,8 +1,10 @@
 import { expect } from "chai";
 import { v1 } from "@google-cloud/kms";
-import { uncoverPaths, decryptSopsJson, CheckSumMismatchError } from "./kms";
 import { setupStubbedKms, encryptJson } from "./shared.specFiles/sopsUtils";
 import { getEncryptedSecret, getUnencryptedSecret, getEncryptedSecretWrongMac } from "./shared.specFiles/fixtures";
+import { uncoverPaths } from "./helpers";
+import { decryptSopsJsonViaGCPKMS } from "./kms";
+import { CheckSumMismatchError } from "./errors";
 
 describe("kms", () => {
     describe("specs tooling", () => {
@@ -12,7 +14,7 @@ describe("kms", () => {
             };
             const { key, iv, kms } = setupStubbedKms("random-password");
             const encryptedData = encryptJson(key, iv, data);
-            const decryptedData = await decryptSopsJson(kms, encryptedData);
+            const decryptedData = await decryptSopsJsonViaGCPKMS(kms, encryptedData);
 
             expect(decryptedData).to.deep.equal(data);
         });
@@ -61,14 +63,14 @@ describe("kms", () => {
         it("is able to decrypt encrypted json files", async () => {
             const encrypted = await getEncryptedSecret(key, iv);
 
-            const decrypted = await decryptSopsJson(kms, encrypted);
+            const decrypted = await decryptSopsJsonViaGCPKMS(kms, encrypted);
             expect(decrypted).to.deep.equal(getUnencryptedSecret());
         }).timeout(15000);
 
         it("detects malformed json-files by checksum through MAC", async () => {
             const encrypted = await getEncryptedSecretWrongMac(key, iv);
             try {
-                await decryptSopsJson(kms, encrypted);
+                await decryptSopsJsonViaGCPKMS(kms, encrypted);
                 throw new Error("fn should throw");
             } catch (e) {
                 expect(e).to.be.instanceOf(CheckSumMismatchError);
