@@ -1,20 +1,25 @@
 import { expect } from "chai";
 import { v1 } from "@google-cloud/kms";
-import { setupStubbedKms, encryptJson } from "./shared.specFiles/sopsUtils";
-import { getEncryptedSecret, getUnencryptedSecret, getEncryptedSecretWrongMac } from "./shared.specFiles/fixtures";
-import { uncoverPaths } from "./helpers";
-import { decryptSopsJsonViaGCPKMS } from "./kms";
-import { CheckSumMismatchError } from "./errors";
 
-describe("kms", () => {
+import { setupStubbedKms } from "./shared.specFiles/kmsStubs";
+import { encryptJson } from "../shared.specFiles/sopsUtils";
+import { getEncryptedSecret, getUnencryptedSecret, getEncryptedSecretWrongMac } from "../shared.specFiles/fixtures";
+import { uncoverPaths } from "../helpers";
+import { KmsKeyDecryptor } from "./kmsKeyDecryptor";
+import { CheckSumMismatchError } from "../errors";
+import { IKeyDecryptor } from "../types";
+import { SopsClient } from "../SopsClient";
+
+describe("SopsClient with KmsKeyDecryptor", () => {
     describe("specs tooling", () => {
-        it("should encrypt and decrypt a record", async () => {
+        it("should decrypt a record", async () => {
             const data = {
                 theThing: "42",
             };
             const { key, iv, kms } = setupStubbedKms("random-password");
+            const sopsClient = new SopsClient(KmsKeyDecryptor.createWithKmsClient(kms));
             const encryptedData = encryptJson(key, iv, data);
-            const decryptedData = await decryptSopsJsonViaGCPKMS(kms, encryptedData);
+            const decryptedData = await sopsClient.decrypt(encryptedData);
 
             expect(decryptedData).to.deep.equal(data);
         });
@@ -52,25 +57,29 @@ describe("kms", () => {
         let key: Buffer;
         let iv: Buffer;
         let kms: v1.KeyManagementServiceClient;
+        let keyDecryptor: IKeyDecryptor;
+        let sopsClient: SopsClient;
 
         before(() => {
             const deps = setupStubbedKms("random-password");
             key = deps.key;
             iv = deps.iv;
             kms = deps.kms;
+            keyDecryptor = KmsKeyDecryptor.createWithKmsClient(kms);
+            sopsClient = new SopsClient(keyDecryptor);
         });
 
         it("is able to decrypt encrypted json files", async () => {
             const encrypted = await getEncryptedSecret(key, iv);
 
-            const decrypted = await decryptSopsJsonViaGCPKMS(kms, encrypted);
+            const decrypted = await sopsClient.decrypt(encrypted);
             expect(decrypted).to.deep.equal(getUnencryptedSecret());
         }).timeout(15000);
 
         it("detects malformed json-files by checksum through MAC", async () => {
             const encrypted = await getEncryptedSecretWrongMac(key, iv);
             try {
-                await decryptSopsJsonViaGCPKMS(kms, encrypted);
+                await sopsClient.decrypt(encrypted);
                 throw new Error("fn should throw");
             } catch (e) {
                 expect(e).to.be.instanceOf(CheckSumMismatchError);

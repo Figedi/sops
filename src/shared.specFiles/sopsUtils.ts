@@ -1,5 +1,4 @@
-import { v1 } from "@google-cloud/kms";
-import { createHash, createCipheriv, scryptSync } from "crypto";
+import { createHash, createCipheriv } from "crypto";
 import { set } from "lodash";
 import { uncoverPaths } from "../helpers";
 import { ISopsEncryptedJSON } from "../types";
@@ -70,25 +69,5 @@ export const encryptJson = (key: Buffer, iv: Buffer, data: unknown): ISopsEncryp
             version: "3.4.0",
             mac: encryptScalarValue(key, digest.digest("hex"), iv, lastModified).formatted,
         },
-    };
-};
-
-export const createStubbedKeyManagementClient = (key: Buffer): v1.KeyManagementServiceClient => {
-    return ({
-        decrypt: async () => [
-            {
-                plaintext: key,
-            },
-        ],
-    } as unknown) as v1.KeyManagementServiceClient;
-};
-
-export const setupStubbedKms = (password: string): any => {
-    const key = scryptSync(password, "random-salt", 32);
-    const iv = Buffer.from("init-vector");
-    return {
-        key,
-        iv,
-        kms: createStubbedKeyManagementClient(key),
     };
 };
