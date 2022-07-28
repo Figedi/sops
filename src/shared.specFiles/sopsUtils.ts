@@ -66,7 +66,7 @@ export const encryptJson = (key: Buffer, iv: Buffer, data: unknown): ISopsEncryp
                 },
             ],
             lastmodified: lastModified,
-            version: "3.4.0",
+            version: "3.7.3",
             mac: encryptScalarValue(key, digest.digest("hex"), iv, lastModified).formatted,
         },
     };

@@ -1,17 +1,19 @@
 import { statSync } from "fs";
-import { KeyManagementServiceClient, v1 } from "@google-cloud/kms";
+import type { v1 } from "@google-cloud/kms";
 import { IKeyDecryptor, ISopsEncryptedJSON } from "../types";
 
 export class KmsKeyDecryptor implements IKeyDecryptor {
     private constructor(private client: v1.KeyManagementServiceClient) {}
 
-    public static create(projectId?: string, serviceAccountPath?: string) {
+    public static async create(projectId?: string, serviceAccountPath?: string) {
+        // eslint-disable-next-line import/no-extraneous-dependencies
+        const mod = await import("@google-cloud/kms");
         // in k8s, there might a service-account mounted
         if (serviceAccountPath) {
             try {
                 statSync(serviceAccountPath);
                 return new KmsKeyDecryptor(
-                    new KeyManagementServiceClient({ projectId, keyFilename: serviceAccountPath }),
+                    new mod.KeyManagementServiceClient({ projectId, keyFilename: serviceAccountPath }),
                 );
             } catch (e) {
                 if (e.code !== "ENOENT") {
@@ -21,7 +23,7 @@ export class KmsKeyDecryptor implements IKeyDecryptor {
         }
 
         // implicit authorization for non-k8s envs
-        return new KmsKeyDecryptor(new KeyManagementServiceClient({ projectId }));
+        return new KmsKeyDecryptor(new mod.KeyManagementServiceClient({ projectId }));
     }
 
     public static createWithKmsClient(client: v1.KeyManagementServiceClient): IKeyDecryptor {

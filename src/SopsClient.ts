@@ -2,10 +2,19 @@ import { createDecipheriv, createHash } from "crypto";
 import { omit, set } from "lodash";
 import { uncoverPaths } from "./helpers";
 import { ISopsEncryptedJSON, IKeyDecryptor } from "./types";
-import { CheckSumMismatchError } from "./errors";
+import { CheckSumMismatchError, SopsKeyNotSupportedError } from "./errors";
 
 export class SopsClient {
     constructor(private keyDecryptor: IKeyDecryptor) {}
+
+    public async decrypt<TResult = Record<string, any>>(sopsJson: ISopsEncryptedJSON): Promise<TResult> {
+        if (!sopsJson.sops.gcp_kms) {
+            throw new SopsKeyNotSupportedError("Only GCP KMS is supported for decrypting sops");
+        }
+        const key = await this.keyDecryptor.decryptKey(sopsJson);
+
+        return this.decryptSopsJsonWithKey(key, sopsJson);
+    }
 
     private decryptScalarValue = (value: string, key: Buffer, aad = ""): Buffer | string | number | boolean => {
         const valre = value.match(/^ENC\[AES256_GCM,data:(.+),iv:(.+),tag:(.+),type:(.+)\]/);
@@ -62,10 +71,4 @@ export class SopsClient {
 
         return decryptedJson as TResult;
     };
-
-    public async decrypt<TResult = Record<string, any>>(sopsJson: ISopsEncryptedJSON): Promise<TResult> {
-        const key = await this.keyDecryptor.decryptKey(sopsJson);
-
-        return this.decryptSopsJsonWithKey(key, sopsJson);
-    }
 }

@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { v1 } from "@google-cloud/kms";
+import type { v1 } from "@google-cloud/kms";
 
 import { setupStubbedKms } from "./shared.specFiles/kmsStubs";
 import { encryptJson } from "../shared.specFiles/sopsUtils";
