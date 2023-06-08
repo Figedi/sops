@@ -5,7 +5,7 @@ orbs:
       node-executor:
         working_directory: ~/code
         docker:
-          - image: circleci/node:10
+          - image: circleci/node:18
       node-gcloud-executor:
         working_directory: ~/code
         docker:
