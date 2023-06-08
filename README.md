@@ -3,7 +3,7 @@
 Minimal Sops re-implementation for decrypting sops files directly w/ node.js
 
 ## Why?
-I needed a quick way to decrypt sops-encoded files loaded w/ node.js without going through child-process hax
+I needed a quick way to decrypt sops-encoded files loaded w/ node.js without going through child-process hacks
 
 ## Features
 
