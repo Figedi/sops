@@ -56,6 +56,6 @@
     "lodash": "^4.17.21"
   },
   "optionalDependencies": {
-    "@google-cloud/kms": "^2.1.2"
+    "@google-cloud/kms": "^3.6.0"
   }
 }
