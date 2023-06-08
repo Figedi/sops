@@ -17,5 +17,9 @@ node-prune.sh
 bin
 lint-staged.config.js
 ./**/*.spec.*
+.github
+.eslintcache
+.releaserc
+tsup.config.ts
 # typescript specific ignorable files
 src
