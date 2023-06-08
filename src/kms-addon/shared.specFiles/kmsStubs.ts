@@ -1,14 +1,14 @@
-import type { v1 } from "@google-cloud/kms";
+import type { KeyManagementServiceClient } from "@google-cloud/kms";
 import { scryptSync } from "crypto";
 
-export const createStubbedKeyManagementClient = (key: Buffer): v1.KeyManagementServiceClient => {
+export const createStubbedKeyManagementClient = (key: Buffer): KeyManagementServiceClient => {
     return {
         decrypt: async () => [
             {
                 plaintext: key,
             },
         ],
-    } as unknown as v1.KeyManagementServiceClient;
+    } as unknown as KeyManagementServiceClient;
 };
 
 export const setupStubbedKms = (password: string): any => {

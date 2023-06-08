@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import type { v1 } from "@google-cloud/kms";
+import type { KeyManagementServiceClient } from "@google-cloud/kms";
 
 import { setupStubbedKms } from "./shared.specFiles/kmsStubs";
 import { encryptJson } from "../shared.specFiles/sopsUtils";
@@ -56,7 +56,7 @@ describe("SopsClient with KmsKeyDecryptor", () => {
     describe("decryptSopsJson", () => {
         let key: Buffer;
         let iv: Buffer;
-        let kms: v1.KeyManagementServiceClient;
+        let kms: KeyManagementServiceClient;
         let keyDecryptor: IKeyDecryptor;
         let sopsClient: SopsClient;
 
