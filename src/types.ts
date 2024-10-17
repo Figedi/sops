@@ -12,6 +12,7 @@ export interface ISopsEncryptedJSON extends Record<string, any> {
 }
 
 export interface IKeyDecryptor {
-    canDecrypt: (json: ISopsEncryptedJSON) => boolean;
-    decryptKey: (json: ISopsEncryptedJSON) => Promise<Buffer>;
+    canDecrypt: (objOrPath: string | ISopsEncryptedJSON) => Promise<boolean>;
+
+    decryptKey(objOrPath: string | ISopsEncryptedJSON): Promise<Buffer>;
 }

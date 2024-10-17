@@ -1,5 +1,5 @@
-import type { KeyManagementServiceClient } from "@google-cloud/kms";
-import { scryptSync } from "crypto";
+import { scryptSync } from 'node:crypto';
+import type { KeyManagementServiceClient } from '@google-cloud/kms';
 
 export const createStubbedKeyManagementClient = (key: Buffer): KeyManagementServiceClient => {
     return {
@@ -12,8 +12,8 @@ export const createStubbedKeyManagementClient = (key: Buffer): KeyManagementServ
 };
 
 export const setupStubbedKms = (password: string): any => {
-    const key = scryptSync(password, "random-salt", 32);
-    const iv = Buffer.from("init-vector");
+    const key = scryptSync(password, 'random-salt', 32);
+    const iv = Buffer.from('init-vector');
     return {
         key,
         iv,

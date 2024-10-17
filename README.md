@@ -1,13 +1,13 @@
 # SOPS
 
-Minimal Sops re-implementation for decrypting sops files directly w/ node.js
+Minimal Sops re-implementation for decrypting sops files directly w/ node.js w/o any sops-dependencies
 
 ## Why?
 I needed a quick way to decrypt sops-encoded files loaded w/ node.js without going through child-process hacks
 
 ## Features
 
-This library in no way supports all sops-versions and is only tested on 3.4.x. It does not implement encoding, although this could probably easily added. An example, not complete version is found in sopsUtils in the specFiles.
+This library in no way supports all sops-versions and is only tested on 3.9.x. It does not implement encoding, although this could probably easily added. An example for encoding, but by all means not complete, is found in `sops.spec-utils.ts`
 
 *Use this at your own risk*
 I've used this in several production projects in a k8s-context in GCP (through GCP KMS).
@@ -16,19 +16,20 @@ I've used this in several production projects in a k8s-context in GCP (through G
 
 Example to decrypt an encrypted file with a GCP-KMS keyring:
 ```typescript
-import { decryptSopsJsonViaGCPKMS, createKMSManagementClient } from "@figedi/sops/kms"
-const someEncryptedJson = require("secrets.enc.json");
-const client = createKMSManagementClient("your-project-id", "optional-path-to-mounted-svc-account-json");
+import { readFile } from "node:fs/promises";
+import { GoogleKmsKeyDecryptor } from "@figedi/sops/kms";
+import { SopsClient } from "@figedi/sops";
 
-const decrypted = await decryptSopsJsonViaGCPKMS(client, someEncryptedJson); 
-```
-Note: When providing an encrypted-json with a MAC, the mac will be used and checked. If the decrypted-json
-does not match the MAC, a `ChecksumMismatchError` is thrown
+const run = async () => {
 
+    const decryptor = await GoogleKmsKeyDecryptor.create('<your gcp project id>', '<path to a service-account.json>');
+    const sopsClient = new SopsClient(decryptor);
+    const testFile = await readFile('<path to a sops encrypted file>', { encoding: 'utf-8'})
 
-Example to test whether file is encrypted w/ gcp kms
-```typescript
-import { canDecryptViaKMS } from "@figedi/sops/kms"
-const someEncryptedJson = require("secrets.enc.json");
-const isDecryptable = canDecryptViaKMS(someEncryptedJson)
+    console.log(await sopsClient.decrypt(testFile))
+
+}
+
+run()
+
 ```

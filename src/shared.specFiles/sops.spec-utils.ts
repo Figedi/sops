@@ -1,7 +1,7 @@
-import { createHash, createCipheriv } from "crypto";
-import { set } from "lodash";
-import { uncoverPaths } from "../helpers";
-import { ISopsEncryptedJSON } from "../types";
+import { createCipheriv, createHash } from 'node:crypto';
+import { set } from 'lodash';
+import { uncoverPaths } from '../helpers';
+import { ISopsEncryptedJSON } from '../types';
 
 /**
  * Encrypts a given string-value (e.g. a stringified object) in a sops-like fashion:
@@ -11,29 +11,29 @@ import { ISopsEncryptedJSON } from "../types";
  * @param iv An initialization-vector for  the cipher
  * @param aad Additional authenticated data, in sops, the keys are concatenated and added as aa d
  */
-const encryptScalarValue = (key: Buffer, data: string | Buffer | number | boolean, iv: Buffer, aad = "") => {
-    const cipher = createCipheriv("aes-256-gcm", key, iv);
+const encryptScalarValue = (key: Buffer, data: string | Buffer | number | boolean, iv: Buffer, aad = '') => {
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
     cipher.setAAD(Buffer.from(aad));
 
     let encryptedBase64;
     let valType;
-    if (typeof data === "number") {
-        encryptedBase64 = cipher.update(String(data), "utf8", "base64");
-        valType = "int";
+    if (typeof data === 'number') {
+        encryptedBase64 = cipher.update(String(data), 'utf8', 'base64');
+        valType = 'int';
     } else if (data instanceof Buffer) {
         encryptedBase64 = cipher.update(data);
-        valType = "bytes";
-    } else if (typeof data === "boolean") {
+        valType = 'bytes';
+    } else if (typeof data === 'boolean') {
         encryptedBase64 = cipher.update(data.toString());
-        valType = "bool";
+        valType = 'bool';
     } else {
-        encryptedBase64 = cipher.update(data as string, "utf8", "base64");
-        valType = "str";
+        encryptedBase64 = cipher.update(data as string, 'utf8', 'base64');
+        valType = 'str';
     }
 
-    encryptedBase64 += cipher.final("base64");
-    const ivBase64 = iv.toString("base64");
-    const authTagBase64 = cipher.getAuthTag().toString("base64");
+    encryptedBase64 += cipher.final('base64');
+    const ivBase64 = iv.toString('base64');
+    const authTagBase64 = cipher.getAuthTag().toString('base64');
 
     return {
         valType,
@@ -46,7 +46,7 @@ const encryptScalarValue = (key: Buffer, data: string | Buffer | number | boolea
 
 export const encryptJson = (key: Buffer, iv: Buffer, data: unknown): ISopsEncryptedJSON => {
     const paths = uncoverPaths(data);
-    const digest = createHash("sha512");
+    const digest = createHash('sha512');
     const lastModified = new Date().toISOString();
 
     const encryptedData = paths.reduce((acc, [nodePath, scalarValue]) => {
@@ -60,14 +60,14 @@ export const encryptJson = (key: Buffer, iv: Buffer, data: unknown): ISopsEncryp
         sops: {
             gcp_kms: [
                 {
-                    resource_id: "stubbed-kms-keyring",
+                    resource_id: 'stubbed-kms-keyring',
                     created_at: lastModified,
-                    enc: "not-used",
+                    enc: 'not-used',
                 },
             ],
             lastmodified: lastModified,
-            version: "3.7.3",
-            mac: encryptScalarValue(key, digest.digest("hex"), iv, lastModified).formatted,
+            version: '3.7.3',
+            mac: encryptScalarValue(key, digest.digest('hex'), iv, lastModified).formatted,
         },
     };
 };

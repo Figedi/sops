@@ -1,0 +1,105 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.3/schema.json",
+  "organizeImports": {
+    "enabled": true,
+    "ignore": ["coverage", "build", "dist", "node_modules", ".turbo"]
+  },
+  "files": { "maxSize": 3000000 },
+  "formatter": {
+    "enabled": true,
+    "lineEnding": "lf",
+    "indentWidth": 4,
+    "lineWidth": 160,
+    "indentStyle": "space",
+    "ignore": ["coverage", "build", "dist", "node_modules", ".turbo", "**/meta/*.json", "src/sdk/gen"]
+  },
+  "javascript": {
+    "formatter": {
+      "arrowParentheses": "asNeeded",
+      "semicolons": "always",
+      "quoteStyle": "single"
+    }
+  },
+  "json": {
+    "formatter": {
+      "indentWidth": 2
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useValidAnchor": "off",
+        "useButtonType": "off",
+        "useKeyWithClickEvents": "off",
+        "useAnchorContent": "off",
+        "useAltText": "off",
+        "useIframeTitle": "off",
+        "useGenericFontNames": "off",
+        "noLabelWithoutControl": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "off",
+        "noUnusedTemplateLiteral": "off",
+        "useDefaultParameterLast": "off",
+        "useShorthandFunctionType": "off",
+        "useImportType": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "noUnusedImports": "error",
+        "noUnknownMediaFeatureName": "off",
+        "noUnknownProperty": "off",
+        "noUnknownFunction": "off"
+      },
+      "suspicious": {
+        "noThenProperty": "off",
+        "noExplicitAny": "off",
+        "noExtraNonNullAssertion": "off",
+        "noConfusingVoidType": "off",
+        "noImplicitAnyLet": "off",
+        "noShadowRestrictedNames": "off",
+        "noEmptyInterface": "off",
+        "noArrayIndexKey": "off",
+        "noExportsInTest": "off"
+      },
+      "complexity": {
+        "useLiteralKeys": "off",
+        "noUselessConstructor": "off",
+        "noForEach": "off",
+        "noBannedTypes": "off",
+        "noStaticOnlyClass": "off",
+        "useOptionalChain": "off"
+      },
+      "performance": {
+        "noAccumulatingSpread": "off",
+        "noDelete": "off"
+      }
+    },
+    "ignore": ["coverage", "build", "dist", "node_modules", ".turbo", "*.config.*", "*.json", "*.d.ts"]
+  },
+  "overrides": [
+    {
+      "include": ["**/*.vue"],
+      "organizeImports": {
+        "enabled": true
+      },
+      "formatter": {
+        "indentWidth": 4
+      },
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          },
+          "correctness": {
+            "noUnusedImports": "off"
+          }
+        }
+      }
+    }
+  ]
+}
