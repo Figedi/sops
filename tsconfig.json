@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "NodeNext",
     "target": "esnext",
+    "moduleResolution": "NodeNext",
     "rootDir": "./src",
     "sourceRoot": "./src",
     "outDir": "./dist",
@@ -15,7 +16,6 @@
     "noImplicitReturns": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
     "skipLibCheck": true,
     "pretty": true,
     "typeRoots": [

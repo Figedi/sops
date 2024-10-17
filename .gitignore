@@ -11,4 +11,4 @@
 .eslintcache
 .DS_Store
 
-src/run.ts
+run.ts

@@ -1,7 +1,13 @@
-import { ISopsEncryptedJSON } from '../../types';
-import { encryptJson } from '../sops.spec-utils';
-import baseJson = require('./secrets.json');
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ISopsEncryptedJSON } from '../../types.js';
+import { encryptJson } from '../sops.spec-utils.js';
 
+// @ts-expect-error target is not commonjs 🤷‍♂️
+const __dirname = import.meta.dirname ?? dirname(fileURLToPath(import.meta.url));
+
+const baseJson = JSON.parse(readFileSync(join(__dirname, './secrets.json'), { encoding: 'utf-8' }));
 export const getUnencryptedSecret = (): Record<string, any> => baseJson;
 export const getEncryptedSecret = (key: Buffer, iv: Buffer): ISopsEncryptedJSON => encryptJson(key, iv, baseJson);
 

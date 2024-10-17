@@ -1,13 +1,13 @@
 import type { KeyManagementServiceClient } from '@google-cloud/kms';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { CheckSumMismatchError } from '../../errors';
-import { uncoverPaths } from '../../helpers';
-import { getEncryptedSecret, getEncryptedSecretWrongMac, getUnencryptedSecret } from '../../shared.specFiles/fixtures';
-import { encryptJson } from '../../shared.specFiles/sops.spec-utils';
-import { SopsClient } from '../../sops-client';
-import { IKeyDecryptor } from '../../types';
-import { GoogleKmsKeyDecryptor } from './google-kms-key-decryptor';
-import { setupStubbedKms } from './shared.specFiles/kms.stub';
+import { CheckSumMismatchError } from '../../errors.js';
+import { uncoverPaths } from '../../helpers.js';
+import { getEncryptedSecret, getEncryptedSecretWrongMac, getUnencryptedSecret } from '../../shared.specFiles/fixtures/secret.fixture.js';
+import { encryptJson } from '../../shared.specFiles/sops.spec-utils.js';
+import { SopsClient } from '../../sops-client.js';
+import type { IKeyDecryptor } from '../../types.js';
+import { GoogleKmsKeyDecryptor } from './google-kms-key-decryptor.js';
+import { setupStubbedKms } from './shared.specFiles/kms.stub.js';
 
 describe('SopsClient with KmsKeyDecryptor', () => {
     describe('specs tooling', () => {
@@ -16,7 +16,7 @@ describe('SopsClient with KmsKeyDecryptor', () => {
                 theThing: '42',
             };
             const { key, iv, kms } = setupStubbedKms('random-password');
-            const sopsClient = new SopsClient(GoogleKmsKeyDecryptor.createWithKmsClient(kms));
+            const sopsClient = new SopsClient(new GoogleKmsKeyDecryptor(kms));
             const encryptedData = encryptJson(key, iv, data);
             const decryptedData = await sopsClient.decrypt(encryptedData);
 
@@ -64,7 +64,7 @@ describe('SopsClient with KmsKeyDecryptor', () => {
             key = deps.key;
             iv = deps.iv;
             kms = deps.kms;
-            keyDecryptor = GoogleKmsKeyDecryptor.createWithKmsClient(kms);
+            keyDecryptor = new GoogleKmsKeyDecryptor(kms);
             sopsClient = new SopsClient(keyDecryptor);
         });
 

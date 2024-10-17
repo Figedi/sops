@@ -19,10 +19,10 @@ Example to decrypt an encrypted file with a GCP-KMS keyring:
 import { readFile } from "node:fs/promises";
 import { GoogleKmsKeyDecryptor } from "@figedi/sops/kms";
 import { SopsClient } from "@figedi/sops";
+import { KeyManagementServiceClient } from '@google-cloud/kms';
 
 const run = async () => {
-
-    const decryptor = await GoogleKmsKeyDecryptor.create('<your gcp project id>', '<path to a service-account.json>');
+    const decryptor = new GoogleKmsKeyDecryptor(new KeyManagementServiceClient({ projectId: '<your gcp project id>', keyFilename: '<path to a service-account.json>' }));
     const sopsClient = new SopsClient(decryptor);
     const testFile = await readFile('<path to a sops encrypted file>', { encoding: 'utf-8'})
 

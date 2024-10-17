@@ -1,12 +1,12 @@
 import { readFile, stat } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-import { chunk, isArray, isPlainObject } from 'lodash';
+import { chunk, isPlainObject } from 'es-toolkit';
 import yaml from 'yaml';
-import { ISopsEncryptedJSON } from './types';
+import type { ISopsEncryptedJSON } from './types.js';
 
 export const uncoverPaths = (tree: any): any[][] => {
     const doUncover = (t: any, walkedPaths: (string | number)[] = []): any[][] => {
-        if (isArray(t)) {
+        if (Array.isArray(t)) {
             return t.reduce((acc, v, k) => [...acc, ...doUncover(v, [...walkedPaths, k])], []);
         }
         if (isPlainObject(t)) {

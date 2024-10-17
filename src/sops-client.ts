@@ -1,8 +1,9 @@
 import { createDecipheriv, createHash } from 'node:crypto';
-import { omit, set } from 'lodash';
-import { CheckSumMismatchError, SopsKeyNotSupportedError } from './errors';
-import { resolvePathOrObj, uncoverPaths } from './helpers';
-import { IKeyDecryptor, ISopsEncryptedJSON } from './types';
+import { omit } from 'es-toolkit';
+import { set } from 'es-toolkit/compat';
+import { CheckSumMismatchError, SopsKeyNotSupportedError } from './errors.js';
+import { resolvePathOrObj, uncoverPaths } from './helpers.js';
+import type { IKeyDecryptor, ISopsEncryptedJSON } from './types.js';
 
 export class SopsClient {
     constructor(private keyDecryptor: IKeyDecryptor) {}
@@ -51,7 +52,7 @@ export class SopsClient {
     };
 
     private decryptSopsJsonWithKey = async <TResult = Record<string, any>>(key: Buffer, sopsJson: ISopsEncryptedJSON): Promise<TResult> => {
-        const paths = uncoverPaths(omit(sopsJson, 'sops'));
+        const paths = uncoverPaths(omit(sopsJson, ['sops']));
         const digest = createHash('sha512');
 
         const decryptedJson = paths.reduce((acc, [nodePath, scalarValue]) => {

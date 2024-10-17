@@ -1,32 +1,9 @@
-import { stat } from 'node:fs/promises';
 import type { KeyManagementServiceClient } from '@google-cloud/kms';
-import { resolvePathOrObj } from '../../helpers';
-import { IKeyDecryptor, ISopsEncryptedJSON } from '../../types';
+import { resolvePathOrObj } from '../../helpers.js';
+import type { IKeyDecryptor, ISopsEncryptedJSON } from '../../types.js';
 
 export class GoogleKmsKeyDecryptor implements IKeyDecryptor {
-    private constructor(private client: KeyManagementServiceClient) {}
-
-    public static async create(projectId?: string, serviceAccountPath?: string) {
-        const mod = await import('@google-cloud/kms');
-        // in k8s, there might a service-account mounted
-        if (serviceAccountPath) {
-            try {
-                stat(serviceAccountPath);
-                return new GoogleKmsKeyDecryptor(new mod.KeyManagementServiceClient({ projectId, keyFilename: serviceAccountPath }));
-            } catch (e) {
-                if (e.code !== 'ENOENT') {
-                    throw e;
-                }
-            }
-        }
-
-        // implicit authorization for non-k8s envs
-        return new GoogleKmsKeyDecryptor(new mod.KeyManagementServiceClient({ projectId }));
-    }
-
-    public static createWithKmsClient(client: KeyManagementServiceClient): IKeyDecryptor {
-        return new GoogleKmsKeyDecryptor(client);
-    }
+    constructor(private client: KeyManagementServiceClient) {}
 
     public async canDecrypt(objOrPath: string | ISopsEncryptedJSON) {
         const { content } = await resolvePathOrObj(objOrPath);

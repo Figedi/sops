@@ -1,7 +1,7 @@
 import { createCipheriv, createHash } from 'node:crypto';
-import { set } from 'lodash';
-import { uncoverPaths } from '../helpers';
-import { ISopsEncryptedJSON } from '../types';
+import { set } from 'es-toolkit/compat';
+import { uncoverPaths } from '../helpers.js';
+import { ISopsEncryptedJSON } from '../types.js';
 
 /**
  * Encrypts a given string-value (e.g. a stringified object) in a sops-like fashion:

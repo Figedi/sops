@@ -1,1 +1,1 @@
-export * from './secret.fixture';
+export * from './secret.fixture.js';
